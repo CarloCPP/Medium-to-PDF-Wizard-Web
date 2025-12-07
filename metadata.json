@@ -1,0 +1,5 @@
+{
+  "name": "Medium to PDF Wizard",
+  "description": "Batch convert Medium articles to clean PDFs using Scribe.rip. Includes interactive element removal and Gemini-powered summarization.",
+  "requestFramePermissions": []
+}
