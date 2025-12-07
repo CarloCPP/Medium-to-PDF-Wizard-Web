@@ -45,8 +45,14 @@
             }
           },
           "defaultConfiguration": "development"
+        },
+        "deploy": {
+          "builder": "angular-cli-ghpages:deploy"
         }
       }
     }
+  },
+  "cli": {
+    "analytics": "229265df-a7f7-4f8a-8045-4a770b1ff2cd"
   }
 }
