@@ -1,4 +1,4 @@
-import { Component, signal, inject } from '@angular/core';
+import { Component, signal, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ContentFetcherService } from './services/content-fetcher.service';
@@ -20,6 +20,35 @@ interface ProcessedArticle {
   template: `
     <div class="flex h-screen w-full bg-slate-100 overflow-hidden font-sans">
       
+      <!-- Settings Modal -->
+      @if(showSettings()) {
+        <div class="absolute inset-0 bg-black/60 z-50 flex items-center justify-center animate-in fade-in" (click)="showSettings.set(false)">
+          <div class="bg-white rounded-lg shadow-xl w-full max-w-md m-4" (click)="$event.stopPropagation()">
+            <div class="p-6 border-b flex justify-between items-center">
+              <div>
+                <h2 class="text-lg font-bold text-slate-800">Settings</h2>
+                <p class="text-sm text-slate-500">Configure your Gemini API Key.</p>
+              </div>
+              <button (click)="showSettings.set(false)" class="p-2 rounded-full hover:bg-slate-100 text-slate-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+            <div class="p-6">
+              <label for="apiKey" class="block text-sm font-medium text-slate-700 mb-1">Gemini API Key</label>
+              <input id="apiKey" type="password" [(ngModel)]="apiKeyInput" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Enter your key here">
+              <p class="text-xs text-slate-500 mt-2">
+                Your key is stored only in your browser's local storage.
+                Get a key from <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-indigo-600 hover:underline">Google AI Studio</a>.
+              </p>
+            </div>
+            <div class="p-4 bg-slate-50 border-t flex justify-end gap-2">
+              <button (click)="showSettings.set(false)" class="px-4 py-2 bg-white border border-slate-300 rounded-md text-sm hover:bg-slate-50">Cancel</button>
+              <button (click)="saveApiKey()" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700">Save Key</button>
+            </div>
+          </div>
+        </div>
+      }
+
       <!-- Sidebar / Input Area -->
       <aside class="w-full md:w-[400px] bg-white border-r border-slate-200 flex flex-col shadow-lg z-10 transition-all duration-300"
              [class.hidden]="activeArticle() !== null && isMobile()"
@@ -27,11 +56,16 @@ interface ProcessedArticle {
         
         <!-- Header -->
         <div class="p-6 border-b border-slate-100 bg-gradient-to-br from-slate-900 to-slate-800 text-white">
-          <div class="flex items-center gap-3 mb-2">
-            <div class="p-2 bg-white/10 rounded-lg">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+          <div class="flex items-center justify-between mb-1">
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-white/10 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              </div>
+              <h1 class="text-xl font-bold tracking-tight">Medium PDF Wizard</h1>
             </div>
-            <h1 class="text-xl font-bold tracking-tight">Medium PDF Wizard</h1>
+            <button (click)="openSettings()" title="Settings" class="p-2 rounded-full text-slate-300 hover:bg-white/10 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V15a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51-1z"></path></svg>
+            </button>
           </div>
           <p class="text-slate-300 text-sm">Convert articles to clean PDFs with AI powers.</p>
         </div>
@@ -115,6 +149,25 @@ interface ProcessedArticle {
             </div>
           }
         </div>
+        <!-- API Key status footer -->
+        <div class="p-4 border-t border-slate-100 bg-slate-50 mt-auto">
+            @if (!apiKey()) {
+                <div class="p-3 bg-amber-100 border border-amber-200 text-amber-800 rounded-lg text-sm">
+                    <div class="flex items-start gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                        <div>
+                            <p class="font-semibold">Gemini features disabled</p>
+                            <p class="text-xs mt-1">Please <button (click)="openSettings()" class="underline font-medium hover:text-amber-900">set your API key</button> to enable AI features.</p>
+                        </div>
+                    </div>
+                </div>
+            } @else {
+                <div class="p-3 bg-green-50 border border-green-200 text-green-800 rounded-lg text-sm flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    <p>Gemini API Key is configured.</p>
+                </div>
+            }
+        </div>
       </aside>
 
       <!-- Main Preview Area -->
@@ -125,6 +178,7 @@ interface ProcessedArticle {
               <app-article-preview 
                 [htmlContent]="article.htmlContent"
                 [title]="article.title"
+                [apiKey]="apiKey()"
                 (close)="closePreview()"
               ></app-article-preview>
             } @else if (article.status === 'loading') {
@@ -160,11 +214,37 @@ interface ProcessedArticle {
 })
 export class AppComponent {
   private contentFetcher = inject(ContentFetcherService);
+  private readonly STORAGE_KEY = 'gemini-api-key';
 
   urlInput = '';
   isProcessing = signal(false);
   articles = signal<ProcessedArticle[]>([]);
   activeArticle = signal<ProcessedArticle | null>(null);
+
+  // API Key management
+  apiKey = signal<string | null>(this.loadKeyFromStorage());
+  showSettings = signal(false);
+  apiKeyInput = signal('');
+
+  constructor() {
+    // Effect to save key to localStorage
+    effect(() => {
+      const key = this.apiKey();
+      if (typeof localStorage === 'undefined') return;
+      if (key) {
+        localStorage.setItem(this.STORAGE_KEY, key);
+      } else {
+        localStorage.removeItem(this.STORAGE_KEY);
+      }
+    });
+  }
+  
+  private loadKeyFromStorage(): string | null {
+    if (typeof localStorage !== 'undefined') {
+        return localStorage.getItem(this.STORAGE_KEY);
+    }
+    return null;
+  }
 
   isMobile() {
     return window.innerWidth < 768;
@@ -174,6 +254,16 @@ export class AppComponent {
     const isActive = this.activeArticle()?.id === article.id;
     if (isActive) return 'bg-indigo-50 border-indigo-500 shadow-sm ring-1 ring-indigo-500';
     return 'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-sm';
+  }
+
+  openSettings() {
+    this.apiKeyInput.set(this.apiKey() || '');
+    this.showSettings.set(true);
+  }
+
+  saveApiKey() {
+    this.apiKey.set(this.apiKeyInput());
+    this.showSettings.set(false);
   }
 
   async processUrls() {

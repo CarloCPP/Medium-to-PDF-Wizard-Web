@@ -5,15 +5,18 @@ import { GoogleGenAI } from '@google/genai';
   providedIn: 'root'
 })
 export class GeminiService {
-  private ai: GoogleGenAI;
 
-  constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env['API_KEY']! });
+  private getAiInstance(apiKey: string): GoogleGenAI {
+    if (!apiKey) {
+      throw new Error('API Key was not provided.');
+    }
+    return new GoogleGenAI({ apiKey });
   }
 
-  async summarizeContent(text: string): Promise<string> {
+  async summarizeContent(text: string, apiKey: string): Promise<string> {
     try {
-      const response = await this.ai.models.generateContent({
+      const ai = this.getAiInstance(apiKey);
+      const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: `Analyze the following article content. Provide a concise summary (max 3 sentences) and a bulleted list of 3 key takeaways. Format the output as clean HTML (using <h3>, <p>, <ul>, <li> tags) suitable for inserting into a document. Do not include markdown code blocks.
         
@@ -28,9 +31,10 @@ export class GeminiService {
     }
   }
 
-  async translateContent(text: string, targetLanguage: string): Promise<string> {
+  async translateContent(text: string, targetLanguage: string, apiKey: string): Promise<string> {
     try {
-       const response = await this.ai.models.generateContent({
+       const ai = this.getAiInstance(apiKey);
+       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: `Translate the following text to ${targetLanguage}. Return only the translated text, preserving the HTML structure if possible or just returning paragraphs.
         
@@ -39,7 +43,8 @@ export class GeminiService {
       });
       return response.text || 'Translation failed.';
     } catch (e) {
-      return 'Error translating.';
+      console.error('Gemini translation failed:', e);
+      throw e;
     }
   }
 }

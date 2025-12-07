@@ -36,8 +36,9 @@ declare var html2pdf: any;
 
             <button 
               (click)="generateSummary()"
-              [disabled]="isAnalyzing()"
-              class="px-3 py-1.5 text-sm bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md hover:bg-indigo-100 transition-colors flex items-center gap-2 disabled:opacity-50">
+              [disabled]="isAnalyzing() || !hasApiKey()"
+              [title]="!hasApiKey() ? 'Set your Gemini API Key in Settings to use this feature' : 'Generate AI Summary'"
+              class="px-3 py-1.5 text-sm bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md hover:bg-indigo-100 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
               @if (isAnalyzing()) {
                 <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
               } @else {
@@ -96,6 +97,7 @@ export class ArticlePreviewComponent {
   // Inputs
   htmlContent = input.required<string>();
   title = input<string>('');
+  apiKey = input<string | null>(null);
   
   // Outputs
   close = output<void>();
@@ -109,6 +111,7 @@ export class ArticlePreviewComponent {
   isAnalyzing = signal(false);
   isGeneratingPdf = signal(false);
   summaryHtml = signal<SafeHtml | null>(null);
+  hasApiKey = computed(() => !!this.apiKey());
 
   // Refs
   @ViewChild('contentContainer') contentContainer!: ElementRef<HTMLDivElement>;
@@ -149,14 +152,20 @@ export class ArticlePreviewComponent {
   }
 
   async generateSummary() {
+    const key = this.apiKey();
+    if (!key) {
+      alert('API Key not set. Please set your Gemini API key in the app settings.');
+      return;
+    }
+
     this.isAnalyzing.set(true);
     const rawText = this.contentContainer.nativeElement.innerText;
     
     try {
-      const summary = await this.geminiService.summarizeContent(rawText);
+      const summary = await this.geminiService.summarizeContent(rawText, key);
       this.summaryHtml.set(this.sanitizer.bypassSecurityTrustHtml(summary));
-    } catch (e) {
-      alert('Failed to generate summary. Please check your API key.');
+    } catch (e: any) {
+      alert(e.message || 'Failed to generate summary. Please check your API key and network connection.');
     } finally {
       this.isAnalyzing.set(false);
     }
