@@ -5,6 +5,8 @@ import { GoogleGenAI } from '@google/genai';
   providedIn: 'root'
 })
 export class GeminiService {
+  // Using gemini-2.5-flash as it's a powerful, cost-effective model suitable for free-tier usage.
+  private readonly TEXT_MODEL = 'gemini-2.5-flash';
 
   private getAiInstance(apiKey: string): GoogleGenAI {
     if (!apiKey) {
@@ -17,7 +19,7 @@ export class GeminiService {
     try {
       const ai = this.getAiInstance(apiKey);
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: this.TEXT_MODEL,
         contents: `Analyze the following article content. Provide a concise summary (max 3 sentences) and a bulleted list of 3 key takeaways. Format the output as clean HTML (using <h3>, <p>, <ul>, <li> tags) suitable for inserting into a document. Do not include markdown code blocks.
         
         Article Content:
@@ -35,7 +37,7 @@ export class GeminiService {
     try {
        const ai = this.getAiInstance(apiKey);
        const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: this.TEXT_MODEL,
         contents: `Translate the following text to ${targetLanguage}. Return only the translated text, preserving the HTML structure if possible or just returning paragraphs.
         
         Text:
